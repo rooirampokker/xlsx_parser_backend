@@ -1,5 +1,13 @@
 <?php
+ini_set ('memory_limit', '-1');
+ini_set ('max_execution_time', 2400); //40 minutes
+ini_set ('display_errors', 1);
+error_reporting(E_ALL);
+
 class Utilities {
+  private $debugEnabled = true;
+  private $debugLog = "log/debug.log";
+  private $inputFileLocation = "xlsx_files/";
     /*
      * HTML table generator component
      */
@@ -16,7 +24,7 @@ class Utilities {
     /*
      *
      */
-    private function convertMySQLOutputToArray($result) {
+    public function convertMySQLOutputToArray($result) {
         $returnArray = [];
         if (is_object($result)) {
             while ($row = $result->fetch_assoc()) {
@@ -90,16 +98,20 @@ class Utilities {
      */
     function debug($query, $result, $description) {
         $stackTrace = debug_backtrace();
-        $query = str_replace("\n\r", "<br>", $query);
+        $query = str_replace("\r", "<br>", $query);
         print_r("<br><b>Function:</b>" . $stackTrace[2]['function']);
         print_r("<br><b>Description: </b>" . $description);
         print_r("<br><b>Query: </b><br>" . $query);
         print_r("<b>Results: </b><br>");
-        while ($row = $result->fetch_assoc()) {
+        if (is_bool($result)) {//in case if inserts, deletes or updates
+          print_r('Item successfully processed');
+        } else {//in case of selects
+          while ($row = $result->fetch_assoc()) {
             print_r($row);
             print_r("<br>");
+          }
+          mysqli_data_seek($result, 0);
         }
-        mysqli_data_seek($result, 0);
         print_r("<hr><br>");
     }
     /*
@@ -123,25 +135,45 @@ class Utilities {
     /*
     *
     */
-    function cleanInput($inputValue, $wrapQuote = true)
-    {
-        $inputValue = filter_var($inputValue, FILTER_SANITIZE_FULL_SPECIAL_CHARS);
-        $inputValue = trim(stripslashes($inputValue));
-        return $wrapQuote ? "'" . $inputValue . "'" : $inputValue;
+    function cleanInput($inputValue, $wrapQuote = true)  {
+      if (is_array($inputValue)) {
+        foreach($inputValue as $key => $field) {
+          $inputValue[$key] = $this->sanitize($field, $wrapQuote);
+        }
+      }
+      return $inputValue;
+    }
+  /*
+   *
+   */
+    private function sanitize($inputValue, $wrapQuote) {
+      $inputValue = filter_var($inputValue, FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+      $inputValue = strtolower(trim(stripslashes($inputValue)));
+      return $wrapQuote ? "'" . $inputValue . "'" : $inputValue;
     }
 /*
  *
  */
     function getFileToProcess() {
-        $inputFileLocation =  "xlsx_files/";
         $fileToProcess = reset($_FILES);
-        if (move_uploaded_file($fileToProcess['tmp_name'], $inputFileLocation.$fileToProcess['name'])) {
+        if (move_uploaded_file($fileToProcess['tmp_name'], $this->inputFileLocation.$fileToProcess['name'])) {
             $response = ['success' => 'true',
-                         'payload' => $inputFileLocation.$fileToProcess['name']];
+                         'payload' => $this->inputFileLocation.$fileToProcess['name']];
         } else {
             $response = ['success' => 'false',
                          'payload' => 'File failed to copy'];
         }
         return $response;
+    }
+  /*
+   *
+   */
+    function log($msg, $data = false) {
+      if ($this->debugEnabled || $_REQUEST['debug']) {
+        $debugMessage = date("Y-m-d H:i:s").": ".$msg."<br>";
+        file_put_contents($this->debugLog, str_replace("<br>", "\r", $debugMessage), FILE_APPEND);
+        print_r($debugMessage);
+        print_r($data);
+      }
     }
 }
