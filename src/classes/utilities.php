@@ -98,7 +98,7 @@ class Utilities {
      */
     function debug($query, $result, $description) {
         $stackTrace = debug_backtrace();
-        $query = str_replace("\r", "<br>", $query);
+        $query = str_replace("\n", "<br>", $query);
         print_r("<br><b>Function:</b>" . $stackTrace[2]['function']);
         print_r("<br><b>Description: </b>" . $description);
         print_r("<br><b>Query: </b><br>" . $query);
@@ -154,7 +154,7 @@ class Utilities {
 /*
  *
  */
-    function getFileToProcess() {
+  function getFileToProcess() {
         $fileToProcess = reset($_FILES);
         if (move_uploaded_file($fileToProcess['tmp_name'], $this->inputFileLocation.$fileToProcess['name'])) {
             $response = ['success' => 'true',
@@ -165,10 +165,11 @@ class Utilities {
         }
         return $response;
     }
+
   /*
    *
    */
-    function log($msg, $data = false) {
+  function log($msg, $data = false) {
       if ($this->debugEnabled || $_REQUEST['debug']) {
         $debugMessage = date("Y-m-d H:i:s").": ".$msg."<br>";
         file_put_contents($this->debugLog, str_replace("<br>", "\r", $debugMessage), FILE_APPEND);

@@ -65,29 +65,123 @@ if (count($_FILES)) {//upload file
  *
  */
 function processOrders($output, $queryEngine) {
+  $order = [];
   foreach ($output['data'] as $order) {
-    $customer = $queryEngine->getUser($order['customer_key']);
-    print_r($customer);
+    $orderDesc = formatOrderDesc($order);
+    $customer  = $queryEngine->getUser($order['customer_key']);
+    $order['user_id']       = $customer[0]['user_id'];
+    $order['post_author']   = 1;
+    $order['post_title']    = $orderDesc['title'];
+    $order['post_status']   = formatPostStatus($order);
+    $order['ping_status']   = "closed";
+    $order['post_password'] = uniqid('order_');
+    $order['post_name']     = $orderDesc['name'];
+    $order['post_type']     = "shop_order";
+    $queryEngine->addOrder($order);
+
+    //go back in now that we have an order ID and update GUID
+    $orderID       = $queryEngine->getInsertId();
+    $order['id']   = $orderID;
+    $order['guid'] = "https://frozenforyou.co.za/?post_type=shop_order&p=".$orderID;
+    $queryEngine->updateOrder($order);
+    processOrderMeta($order, $customer, $queryEngine);
   }
 }
 /*
  *
  */
+function processOrderMeta($order, $customer, $queryEngine) {
+  $order['user_id'] = $order['user_id'];
+  $userInfo = $queryEngine->getUserMeta($order);
+
+  $orderMeta['_order_key']            = uniqid('wc_order_');
+  $orderMeta['_customer_user']        = $order['user_id'];
+  $orderMeta['_payment_method']       = $order['payment_method'];
+  $orderMeta['_payment_method_title'] = $order['payment_method'];
+  $orderMeta['_created_via'] = 'yumby_import';
+  $firstName = getMeta($userInfo, 'meta_key', 'first_name');
+  $lastName  = getMeta($userInfo, 'meta_key', 'last_name');
+  //$orderMeta['_cart_hash'] = $userInfo[1];
+  $orderMeta['_billing_first_name'] = $orderMeta['_shipping_first_name'] = $firstName;
+  $orderMeta['_billing_last_name'] = $orderMeta['_shipping_last_name'] = $lastName;
+
+  $orderMeta['_billing_address_1'] = $orderMeta['_shipping_address_1'] = $order['address_line_1'];
+  $orderMeta['_billing_address_2'] = $orderMeta['_shipping_address_2'] = $order['address_line_2'];
+  $orderMeta['_billing_email'] = $customer[0]['user_email'];
+  $orderMeta['_billing_phone'] = getMeta($userInfo, 'meta_key', 'billing_phone');
+  $orderMeta['_cart_discount'] = $order['discount_value'];
+  $orderMeta['_cart_discount'] = $order['discount_value'];
+  $orderMeta['_billing_state'] = $orderMeta['_shipping_state'] = $order['province'];
+  $orderMeta['_shipping_country'] = $orderMeta['_billing_country'] = "ZA";
+  $orderMeta['_order_currency'] = 'ZAR';
+  $orderMeta['_cart_discount'] = $order['discount_value'];
+  $orderMeta['_order_shipping'] = $order['delivery_fee'];
+  $orderMeta['_order_total'] = $order['card_payment_value'];
+  $orderMeta['_date_completed'] = $orderMeta['_date_paid'] = strtotime($order['local_order_date']);
+  $orderMeta['_paid_date'] = $orderMeta['_completed_date'] = $order['local_order_date'];
+  foreach ($orderMeta as $key => $field) {
+    $param['post_id']    = $order['id'];
+    $param['key']   = $key;
+    $param['value'] = $field;
+    $queryEngine->addOrderMeta($param);
+  }
+}
+/*
+ *
+ */
+function getMeta($metaArray, $metaKey, $metaValue) {
+  foreach($metaArray as $item => $value) {
+    if (isset($value[$metaKey])) {
+      if ($value[$metaKey] == $metaValue) {
+        return $value['meta_value'];
+      }
+    }
+  }
+}
 function processOrderItem($output, $queryEngine) {
 
+}
+/*
+ * Order &ndash; July 15, 2016 @ 03:20 PM
+ */
+function formatOrderDesc($order) {
+  $orderDate  = date_parse($order['local_order_date']);
+  $month      = DateTime::createFromFormat('!m', $orderDate['month'])->format('F');
+  $titleTime  = date('h:i A', strtotime($order['local_order_date']));
+  $nameTime   = date('hi-A', strtotime($order['local_order_date']));
+
+
+  $orderDesc['title'] = "Order &ndash; $month ".$orderDate['day'].", ".$orderDate['year']." @ $titleTime";
+  $orderDesc['name'] = strtolower("order-$month-".$orderDate['day']."-".$orderDate['year']."-$nameTime");
+  return $orderDesc;
+}
+/*
+ *
+ */
+function formatPostStatus($order) {
+  $postStatus = $order['status'];
+  switch($postStatus) {
+    case 'Success':
+      $postStatus = "wc-completed";
+      break;
+    default:
+      $postStatus = "wc-on-hold";
+  }
+  return $postStatus;
 }
 /*
  *
  */
 function processCustomers($output, $queryEngine) {
   foreach ($output['data'] as $user) {
+    $user['password']        = 'set password';
+    $user['nickname']        = ucfirst($user['first_name']) . " " . ucfirst($user['last_name']);
+    $user['description']     = "Automated import from Yumbi database";
+    $user['wp_capabilities'] = serialize(["customer" => true]);
+    $user['order_count']     = 0; //will have to get this....
+    $user['wp_user_level']   = 0;
     $queryEngine->addUser($user);
     $userId = $queryEngine->getInsertId();
-    $user['nickname'] = ucfirst($param['first_name']) . " " . ucfirst($param['last_name']);
-    $user['description'] = "Automated import from Yumbi database";
-    $user['wp_capabilities'] = serialize(["customer" => true]);
-    $user['order_count'] = 0; //will have to get this....
-    $user['wp_user_level'] = 0;
     foreach ($user as $key => $field) {
       $param['id'] = $userId;
       $param['key'] = $key;

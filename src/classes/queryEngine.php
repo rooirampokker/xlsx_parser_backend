@@ -35,15 +35,15 @@ class dbQueries {
       $param = $this->utils->cleanInput($param, false);
 
       $this->queryDescription = "Populating table: wp_users";
-      $this->query = "INSERT INTO wp_users\n\r ";
-      $this->query .= "(user_login, user_pass, user_nicename, user_email, user_registered, display_name)\n\r ";
-      $this->query .= "VALUES ( ";
-      $this->query .= "'".$param['first_name']."_".$param['last_name']."',";
-      $this->query .= "'test',";
-      $this->query .= "'".$param['first_name']."_".$param['last_name']."',";
-      $this->query .= "'".$param['email_address']."',";
-      $this->query .= "NOW(),";
-      $this->query .= "'".ucfirst($param['first_name'])." ".ucfirst($param['last_name'])."'";
+      $this->query = "INSERT INTO wp_users\n ";
+      $this->query .= "(user_login, user_pass, user_nicename, user_email, user_registered, display_name)\n ";
+      $this->query .= "VALUES (\n ";
+      $this->query .= "'".$param['first_name']."_".$param['last_name']."',\n ";
+      $this->query .= "'".$param['password']."',\n ";
+      $this->query .= "'".$param['first_name']."_".$param['last_name']."',\n ";
+      $this->query .= "'".$param['email_address']."',\n ";
+      $this->query .= "NOW(),\n ";
+      $this->query .= "'".ucfirst($param['first_name'])." ".ucfirst($param['last_name'])."'\n ";
       $this->query .= ")\n\r ";
 
       return $this->processQuery();
@@ -53,29 +53,95 @@ class dbQueries {
    */
     function addUserMeta($param) {
       $this->queryDescription = "Populating table: wp_usermeta";
-      $this->query = "INSERT INTO wp_usermeta\n\r ";
-      $this->query .= "(user_id, meta_key, meta_value)\n\r ";
-      $this->query .= "VALUES ( ";
-      $this->query .= "'".$param['id']."',";
-      $this->query .= "'".$param['key']."',";
-      $this->query .= "'".$param['value']."'";
-      $this->query .= ")\n\r ";
+      $this->query = "INSERT INTO wp_usermeta\n ";
+      $this->query .= "(user_id, meta_key, meta_value)\n ";
+      $this->query .= "VALUES (\n ";
+      $this->query .= "'".$param['id']."',\n ";
+      $this->query .= "'".$param['key']."',\n ";
+      $this->query .= "'".$param['value']."'\n ";
+      $this->query .= ")\n ";
+
+      return $this->processQuery();
+    }
+  /*
+   *
+   */
+    function addOrder($param) {
+      $this->queryDescription = "Populating table: wp_posts";
+      $this->query = "INSERT INTO wp_posts\n ";
+      $this->query .= "(post_author, post_date, post_date_gmt, post_title, post_status, ping_status, post_password, post_name, post_modified, post_modified_gmt, post_content, post_excerpt, to_ping, pinged, post_content_filtered,  post_type)\n ";
+      $this->query .= "VALUES (\n ";
+      $this->query .= "'".$param['post_author']."',\n ";
+      $this->query .= "NOW(),\n ";
+      $this->query .= "NOW(),\n ";
+      $this->query .= "'".$param['post_title']."',\n ";
+      $this->query .= "'".$param['post_status']."',\n ";
+      $this->query .= "'".$param['ping_status']."',\n ";
+      $this->query .= "'".$param['post_password']."',\n ";
+      $this->query .= "'".$param['post_name']."',\n ";
+      $this->query .= "NOW(),\n ";
+      $this->query .= "NOW(),\n ";
+      $this->query .= "'',\n ";
+      $this->query .= "'yumby import',\n "; //post_excerpt
+      $this->query .= "'',\n ";//to_ping
+      $this->query .= "'',\n ";//pinged
+      $this->query .= "'',\n ";//post_content_filtered
+      $this->query .= "'".$param['post_type']."'\n ";
+      $this->query .= ")\n ";
+
+      return $this->processQuery();
+    }
+  /*
+   *
+   */
+    function addOrderMeta($param) {
+      $this->queryDescription = "Populating table: wp_postmeta";
+      $this->query = "INSERT INTO wp_postmeta\n ";
+      $this->query .= "(post_id, meta_key, meta_value)\n ";
+      $this->query .= "VALUES (\n ";
+      $this->query .= "'".$param['post_id']."',\n ";
+      $this->query .= "'".$param['key']."',\n ";
+      $this->query .= "'".$param['value']."'\n ";
+      $this->query .= ")\n ";
 
       return $this->processQuery();
     }
   /*
   *
   */
-  function getUser($param) {
-    $this->queryDescription = "Get data from: wp_users";
-    $this->query = "SELECT *\r ";
-    $this->query .= "FROM wp_usermeta\r ";
-    $this->query .= "JOIN wp_users on wp_usermeta.user_id = wp_users.id\r ";
-    $this->query .= "WHERE wp_usermeta.meta_key = 'customer_key'\r ";
-    $this->query .= "AND meta_value = '$param'\r ";
+    function updateOrder($param) {
+      $this->queryDescription = "Update table: wp_posts";
+      $this->query = "UPDATE wp_posts\n ";
+      $this->query .= "SET\n ";
+      $this->query .= "guid = '".$param['guid']."'\n ";
+      $this->query .= "WHERE ID = ".$param['id']."\n ";
 
-    return $this->processQuery(true);
-  }
+      return $this->processQuery();
+    }
+  /*
+  *
+  */
+    function getUser($param) {
+      $this->queryDescription = "Get data from: wp_users";
+      $this->query = "SELECT *\n ";
+      $this->query .= "FROM wp_usermeta\n ";
+      $this->query .= "JOIN wp_users on wp_usermeta.user_id = wp_users.id\n ";
+      $this->query .= "WHERE wp_usermeta.meta_key = 'customer_key'\n ";
+      $this->query .= "AND meta_value = '$param'\n ";
+
+      return $this->processQuery(true);
+    }
+  /*
+  *
+  */
+    function getUserMeta($param) {
+      $this->queryDescription = "Get data from: wp_usermeta";
+      $this->query = "SELECT *\n ";
+      $this->query .= "FROM wp_usermeta\n ";
+      $this->query .= "WHERE user_id = '".$param['user_id']."'\n ";
+
+      return $this->processQuery(true);
+    }
     /*
      *
      */
