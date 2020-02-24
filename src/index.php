@@ -5,6 +5,11 @@
  *
   DELETE FROM wp_usermeta WHERE user_id != 1;
   DELETE FROM wp_users WHERE id != 1;
+
+  DELETE wp_posts, wp_postmeta
+  FROM wp_posts
+  JOIN wp_postmeta ON wp_postmeta.post_id
+  AND wp_posts.post_type = 'shop_order'
  */
 session_start();
 ini_set('session.cookie_lifetime', 60 * 60 * 24 * 7);
@@ -77,7 +82,7 @@ function processOrders($output, $queryEngine) {
     $order['post_password'] = uniqid('order_');
     $order['post_name']     = $orderDesc['name'];
     $order['post_type']     = "shop_order";
-    $queryEngine->addOrder($order);
+    $queryEngine->createOrder($order);
 
     //go back in now that we have an order ID and update GUID
     $orderID       = $queryEngine->getInsertId();
@@ -92,6 +97,7 @@ function processOrders($output, $queryEngine) {
  */
 function processOrderMeta($order, $customer, $queryEngine) {
   $order['user_id'] = $order['user_id'];
+  $orderParam = $userParam = [];
   $userInfo = $queryEngine->getUserMeta($order);
 
   $orderMeta['_order_key']            = uniqid('wc_order_');
@@ -102,13 +108,34 @@ function processOrderMeta($order, $customer, $queryEngine) {
   $firstName = getMeta($userInfo, 'meta_key', 'first_name');
   $lastName  = getMeta($userInfo, 'meta_key', 'last_name');
   //$orderMeta['_cart_hash'] = $userInfo[1];
-  $orderMeta['_billing_first_name'] = $orderMeta['_shipping_first_name'] = $firstName;
-  $orderMeta['_billing_last_name'] = $orderMeta['_shipping_last_name'] = $lastName;
+  $orderMeta['_billing_first_name'] =
+    $orderMeta['_shipping_first_name'] =
+    $userMeta['billing_first_name'] =
+    $userMeta['shipping_first_name'] =
+      $firstName;
+  $orderMeta['_billing_last_name'] =
+    $orderMeta['_shipping_last_name'] =
+      $userMeta['billing_last_name'] =
+      $userMeta['shipping_last_name'] =
+      $lastName;
 
-  $orderMeta['_billing_address_1'] = $orderMeta['_shipping_address_1'] = $order['address_line_1'];
-  $orderMeta['_billing_address_2'] = $orderMeta['_shipping_address_2'] = $order['address_line_2'];
-  $orderMeta['_billing_email'] = $customer[0]['user_email'];
-  $orderMeta['_billing_phone'] = getMeta($userInfo, 'meta_key', 'billing_phone');
+  $orderMeta['_billing_address_1']    =
+    $orderMeta['_shipping_address_1'] =
+    $userMeta['billing_address_1']   =
+    $userMeta['shipping_address_1']  =
+      $order['address_line_1'];
+  $orderMeta['_billing_address_2']    =
+    $orderMeta['_shipping_address_2'] =
+    $userMeta['billing_address_2']   =
+    $userMeta['shipping_address_2']  =
+      $order['address_line_2'];
+  $orderMeta['_billing_email'] =
+    $userMeta['billing_email'] =
+    $customer[0]['user_email'];
+  $orderMeta['_billing_phone'] =
+    $userMeta['billing_phone'] =
+      getMeta($userInfo, 'meta_key', 'billing_phone');
+
   $orderMeta['_cart_discount'] = $order['discount_value'];
   $orderMeta['_cart_discount'] = $order['discount_value'];
   $orderMeta['_billing_state'] = $orderMeta['_shipping_state'] = $order['province'];
@@ -119,11 +146,18 @@ function processOrderMeta($order, $customer, $queryEngine) {
   $orderMeta['_order_total'] = $order['card_payment_value'];
   $orderMeta['_date_completed'] = $orderMeta['_date_paid'] = strtotime($order['local_order_date']);
   $orderMeta['_paid_date'] = $orderMeta['_completed_date'] = $order['local_order_date'];
+  //$queryEngine->createUserMeta($param);
   foreach ($orderMeta as $key => $field) {
-    $param['post_id']    = $order['id'];
-    $param['key']   = $key;
-    $param['value'] = $field;
-    $queryEngine->addOrderMeta($param);
+    $orderParam['post_id'] = $order['id'];
+    $orderParam['key']     = $key;
+    $orderParam['value']   = $field;
+    $queryEngine->createOrderMeta($orderParam);
+  }
+  foreach ($userMeta as $key => $field) {
+    $userParam['id'] = $order['user_id'];
+    $userParam['key']     = $key;
+    $userParam['value']   = $field;
+    $queryEngine->createUserMeta($userParam);
   }
 }
 /*
@@ -175,18 +209,23 @@ function formatPostStatus($order) {
 function processCustomers($output, $queryEngine) {
   foreach ($output['data'] as $user) {
     $user['password']        = 'set password';
-    $user['nickname']        = ucfirst($user['first_name']) . " " . ucfirst($user['last_name']);
+    $user['nickname']        = ucfirst(trim($user['first_name'])) . " " . ucfirst(trim($user['last_name']));
     $user['description']     = "Automated import from Yumbi database";
     $user['wp_capabilities'] = serialize(["customer" => true]);
+    $user['billing_phone']   = $user['mobile_number'];
+    $user['user_login']      = str_replace(" ", "_", $user['nickname']);
     $user['order_count']     = 0; //will have to get this....
     $user['wp_user_level']   = 0;
-    $queryEngine->addUser($user);
+    $queryEngine->createUser($user);
+    //we don't want the following fields in meta
+    unset($user['password']);
+    unset($user['user_login']);
     $userId = $queryEngine->getInsertId();
     foreach ($user as $key => $field) {
       $param['id'] = $userId;
       $param['key'] = $key;
       $param['value'] = $field;
-      $queryEngine->addUserMeta($param);
+      $queryEngine->createUserMeta($param);
     }
   }
 }

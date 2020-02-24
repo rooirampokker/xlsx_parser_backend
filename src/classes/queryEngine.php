@@ -1,4 +1,9 @@
 <?php
+//DELETE FROM `wp_usermeta` WHERE user_id > 1;
+//DELETE FROM `wp_users` WHERE id > 1;
+//DELETE FROM `wp_postmeta` WHERE user_id > 1;
+//DELETE FROM `wp_posts` WHERE id > 1;
+
 ini_set ('memory_limit', '-1');
 ini_set ('max_execution_time', 2400); //40 minutes
 ini_set ('display_errors', 1);
@@ -31,19 +36,19 @@ class dbQueries {
     /*
     *
     */
-    function addUser($param) {
+    function createUser($param) {
       $param = $this->utils->cleanInput($param, false);
 
       $this->queryDescription = "Populating table: wp_users";
       $this->query = "INSERT INTO wp_users\n ";
       $this->query .= "(user_login, user_pass, user_nicename, user_email, user_registered, display_name)\n ";
       $this->query .= "VALUES (\n ";
-      $this->query .= "'".$param['first_name']."_".$param['last_name']."',\n ";
+      $this->query .= "'".$param['user_login']."',\n ";
       $this->query .= "'".$param['password']."',\n ";
-      $this->query .= "'".$param['first_name']."_".$param['last_name']."',\n ";
+      $this->query .= "'".$param['user_login']."',\n ";
       $this->query .= "'".$param['email_address']."',\n ";
       $this->query .= "NOW(),\n ";
-      $this->query .= "'".ucfirst($param['first_name'])." ".ucfirst($param['last_name'])."'\n ";
+      $this->query .= "'".$param['nickname']."'\n ";
       $this->query .= ")\n\r ";
 
       return $this->processQuery();
@@ -51,7 +56,7 @@ class dbQueries {
   /*
    *
    */
-    function addUserMeta($param) {
+    function createUserMeta($param) {
       $this->queryDescription = "Populating table: wp_usermeta";
       $this->query = "INSERT INTO wp_usermeta\n ";
       $this->query .= "(user_id, meta_key, meta_value)\n ";
@@ -64,9 +69,33 @@ class dbQueries {
       return $this->processQuery();
     }
   /*
+  *
+  */
+  function getUser($param) {
+    $this->queryDescription = "Get data from: wp_users";
+    $this->query = "SELECT *\n ";
+    $this->query .= "FROM wp_usermeta\n ";
+    $this->query .= "JOIN wp_users on wp_usermeta.user_id = wp_users.id\n ";
+    $this->query .= "WHERE wp_usermeta.meta_key = 'customer_key'\n ";
+    $this->query .= "AND meta_value = '$param'\n ";
+
+    return $this->processQuery(true);
+  }
+  /*
+  *
+  */
+  function getUserMeta($param) {
+    $this->queryDescription = "Get data from: wp_usermeta";
+    $this->query = "SELECT *\n ";
+    $this->query .= "FROM wp_usermeta\n ";
+    $this->query .= "WHERE user_id = '".$param['user_id']."'\n ";
+
+    return $this->processQuery(true);
+  }
+  /*
    *
    */
-    function addOrder($param) {
+    function createOrder($param) {
       $this->queryDescription = "Populating table: wp_posts";
       $this->query = "INSERT INTO wp_posts\n ";
       $this->query .= "(post_author, post_date, post_date_gmt, post_title, post_status, ping_status, post_password, post_name, post_modified, post_modified_gmt, post_content, post_excerpt, to_ping, pinged, post_content_filtered,  post_type)\n ";
@@ -94,7 +123,7 @@ class dbQueries {
   /*
    *
    */
-    function addOrderMeta($param) {
+    function createOrderMeta($param) {
       $this->queryDescription = "Populating table: wp_postmeta";
       $this->query = "INSERT INTO wp_postmeta\n ";
       $this->query .= "(post_id, meta_key, meta_value)\n ";
@@ -117,30 +146,6 @@ class dbQueries {
       $this->query .= "WHERE ID = ".$param['id']."\n ";
 
       return $this->processQuery();
-    }
-  /*
-  *
-  */
-    function getUser($param) {
-      $this->queryDescription = "Get data from: wp_users";
-      $this->query = "SELECT *\n ";
-      $this->query .= "FROM wp_usermeta\n ";
-      $this->query .= "JOIN wp_users on wp_usermeta.user_id = wp_users.id\n ";
-      $this->query .= "WHERE wp_usermeta.meta_key = 'customer_key'\n ";
-      $this->query .= "AND meta_value = '$param'\n ";
-
-      return $this->processQuery(true);
-    }
-  /*
-  *
-  */
-    function getUserMeta($param) {
-      $this->queryDescription = "Get data from: wp_usermeta";
-      $this->query = "SELECT *\n ";
-      $this->query .= "FROM wp_usermeta\n ";
-      $this->query .= "WHERE user_id = '".$param['user_id']."'\n ";
-
-      return $this->processQuery(true);
     }
     /*
      *
