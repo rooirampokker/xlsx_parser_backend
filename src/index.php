@@ -9,9 +9,14 @@
   DELETE wp_posts, wp_postmeta
   FROM wp_posts
   JOIN wp_postmeta ON wp_postmeta.post_id
-  AND wp_posts.post_type = 'shop_order'
+  AND wp_posts.post_type = 'shop_order';
+
+  DELETE wp_woocommerce_order_items, wp_woocommerce_order_itemmeta
+  FROM wp_woocommerce_order_items
+  JOIN wp_woocommerce_order_itemmeta ON wp_woocommerce_order_itemmeta.order_item_id = wp_woocommerce_order_items.order_item_id;
  */
 session_start();
+$_SESSION['order_id'] = 0;
 ini_set('session.cookie_lifetime', 60 * 60 * 24 * 7);
 require '../vendor/autoload.php';
 require 'classes/xlsxReader.php';
@@ -69,6 +74,32 @@ if (count($_FILES)) {//upload file
 /*
  *
  */
+function processCustomers($output, $queryEngine) {
+  foreach ($output['data'] as $user) {
+    $user['password']        = 'set password';
+    $user['nickname']        = ucfirst(trim($user['first_name'])) . " " . ucfirst(trim($user['last_name']));
+    $user['description']     = "Automated import from Yumbi database";
+    $user['wp_capabilities'] = serialize(["customer" => true]);
+    $user['billing_phone']   = $user['mobile_number'];
+    $user['user_login']      = str_replace(" ", "_", $user['nickname']);
+    $user['order_count']     = 0; //will have to get this....
+    $user['wp_user_level']   = 0;
+    $queryEngine->createUser($user);
+    //we don't want the following fields in meta
+    unset($user['password']);
+    unset($user['user_login']);
+    $userId = $queryEngine->getInsertId();
+    foreach ($user as $key => $field) {
+      $param['id'] = $userId;
+      $param['key'] = $key;
+      $param['value'] = $field;
+      $queryEngine->createUserMeta($param);
+    }
+  }
+}
+/*
+ *
+ */
 function processOrders($output, $queryEngine) {
   $order = [];
   foreach ($output['data'] as $order) {
@@ -93,7 +124,7 @@ function processOrders($output, $queryEngine) {
   }
 }
 /*
- *
+ * //TODO: WE STILL NEED A DELIVERED/DELIVERY-BY DATE
  */
 function processOrderMeta($order, $customer, $queryEngine) {
   $order['user_id'] = $order['user_id'];
@@ -101,6 +132,7 @@ function processOrderMeta($order, $customer, $queryEngine) {
   $userInfo = $queryEngine->getUserMeta($order);
 
   $orderMeta['_order_key']            = uniqid('wc_order_');
+  $orderMeta['_yumbi_order_id']       = $order['order_id'];
   $orderMeta['_customer_user']        = $order['user_id'];
   $orderMeta['_payment_method']       = $order['payment_method'];
   $orderMeta['_payment_method_title'] = $order['payment_method'];
@@ -146,6 +178,11 @@ function processOrderMeta($order, $customer, $queryEngine) {
   $orderMeta['_order_total'] = $order['card_payment_value'];
   $orderMeta['_date_completed'] = $orderMeta['_date_paid'] = strtotime($order['local_order_date']);
   $orderMeta['_paid_date'] = $orderMeta['_completed_date'] = $order['local_order_date'];
+  $orderMeta['delivery_long'] = $order['delivery_longitude_coordinate'];
+  $orderMeta['delivery_lat'] = $order['delivery_longitude_latitude'];
+  $orderMeta['delivery_tip'] = $order['driver_tip'];
+  $orderMeta['discount'] = $order['discount'];
+
   //$queryEngine->createUserMeta($param);
   foreach ($orderMeta as $key => $field) {
     $orderParam['post_id'] = $order['id'];
@@ -163,16 +200,31 @@ function processOrderMeta($order, $customer, $queryEngine) {
 /*
  *
  */
-function getMeta($metaArray, $metaKey, $metaValue) {
-  foreach($metaArray as $item => $value) {
-    if (isset($value[$metaKey])) {
-      if ($value[$metaKey] == $metaValue) {
-        return $value['meta_value'];
-      }
+function processOrderItems($output, $queryEngine) {
+  foreach($output['data'] as $orderItem) {
+    $order  = $queryEngine->getOrder($orderItem['order_id']);
+    $orderItem['item_name'] = $orderItem['item'];
+    $orderItem['item_type'] = "line_item";
+    $orderItem['order_id']  = $order[0]['post_id'];
+    $queryEngine->addOrderItem($orderItem);
+
+    //ADD SHIPPING AT THE END OF EACH ORDER
+    if ($_SESSION['order_id'] != $order[0]['post_id']) {
+      $_SESSION['order_id']   = $order[0]['post_id'];
+      $orderMeta              = $queryEngine->getOrderMeta($order[0]['post_id']);
+      $shippingCost           = getMeta($orderMeta, 'meta_key', '_order_shipping');
+      $orderItem['item_name'] = ($shippingCost > 0) ? 'Flat rate' : 'Free shipping';
+      $orderItem['item_type'] = "shipping";
+      $queryEngine->addOrderItem($orderItem);
     }
+    processOrderItemMeta();
   }
+
 }
-function processOrderItem($output, $queryEngine) {
+/*
+ *
+ */
+function processOrderItemMeta() {
 
 }
 /*
@@ -206,26 +258,13 @@ function formatPostStatus($order) {
 /*
  *
  */
-function processCustomers($output, $queryEngine) {
-  foreach ($output['data'] as $user) {
-    $user['password']        = 'set password';
-    $user['nickname']        = ucfirst(trim($user['first_name'])) . " " . ucfirst(trim($user['last_name']));
-    $user['description']     = "Automated import from Yumbi database";
-    $user['wp_capabilities'] = serialize(["customer" => true]);
-    $user['billing_phone']   = $user['mobile_number'];
-    $user['user_login']      = str_replace(" ", "_", $user['nickname']);
-    $user['order_count']     = 0; //will have to get this....
-    $user['wp_user_level']   = 0;
-    $queryEngine->createUser($user);
-    //we don't want the following fields in meta
-    unset($user['password']);
-    unset($user['user_login']);
-    $userId = $queryEngine->getInsertId();
-    foreach ($user as $key => $field) {
-      $param['id'] = $userId;
-      $param['key'] = $key;
-      $param['value'] = $field;
-      $queryEngine->createUserMeta($param);
+function getMeta($metaArray, $metaKey, $metaValue) {
+  foreach($metaArray as $item => $value) {
+    if (isset($value[$metaKey])) {
+      if ($value[$metaKey] == $metaValue) {
+
+        return $value['meta_value'];
+      }
     }
   }
 }

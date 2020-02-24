@@ -138,6 +138,30 @@ class dbQueries {
   /*
   *
   */
+  function getOrder($param) {
+    $this->queryDescription = "Get data from: wp_posts and wp_postmeta";
+    $this->query = "SELECT *\n ";
+    $this->query .= "FROM wp_posts\n ";
+    $this->query .= "LEFT JOIN wp_postmeta on wp_postmeta.post_id = wp_posts.id\n ";
+    $this->query .= "WHERE wp_postmeta.meta_key = '_yumbi_order_id'\n ";
+    $this->query .= "AND meta_value = '$param'\n ";
+
+    return $this->processQuery(true);
+  }
+  /*
+  *
+  */
+  function getOrderMeta($param) {
+    $this->queryDescription = "Get data from: wp_posts and wp_postmeta";
+    $this->query = "SELECT *\n ";
+    $this->query .= "FROM wp_postmeta\n ";
+    $this->query .= "WHERE post_id = '$param'\n ";
+
+    return $this->processQuery(true);
+  }
+  /*
+  *
+  */
     function updateOrder($param) {
       $this->queryDescription = "Update table: wp_posts";
       $this->query = "UPDATE wp_posts\n ";
@@ -147,9 +171,24 @@ class dbQueries {
 
       return $this->processQuery();
     }
-    /*
-     *
-     */
+  /*
+   *
+   */
+  function addOrderItem($param) {
+    $this->queryDescription = "Populating table: wp_woocommerce_order_items";
+    $this->query = "INSERT INTO wp_woocommerce_order_items\n ";
+    $this->query .= "(order_item_name, order_item_type, order_id)\n ";
+    $this->query .= "VALUES (\n ";
+    $this->query .= "'".$param['item_name']."',\n ";
+    $this->query .= "'".$param['item_type']."',\n ";
+    $this->query .= "'".$param['order_id']."'\n ";
+    $this->query .= ")\n ";
+
+    return $this->processQuery();
+  }
+  /*
+   *
+   */
     private function processQuery($convertToArray=false) {
         if (!$result = $this->db->query($this->query)) {
             $this->utils->log($this->query);
