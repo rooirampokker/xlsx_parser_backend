@@ -36,6 +36,20 @@ class dbQueries {
     /*
     *
     */
+    function getProduct($param) {
+      $this->queryDescription = "Get data from: wp_posts";
+
+      $this->query = "SELECT *\n ";
+      $this->query .= "FROM wp_posts\n ";
+      $this->query .= "WHERE post_title = '".$param."'\n ";
+      $this->query .= "AND post_status = 'publish'\n ";
+      $this->query .= "AND post_type = 'product'\n ";
+
+      return $this->processQuery(truex);
+    }
+  /*
+  *
+  */
     function createUser($param) {
       $param = $this->utils->cleanInput($param, false);
 
@@ -58,6 +72,7 @@ class dbQueries {
    */
     function createUserMeta($param) {
       $this->queryDescription = "Populating table: wp_usermeta";
+
       $this->query = "INSERT INTO wp_usermeta\n ";
       $this->query .= "(user_id, meta_key, meta_value)\n ";
       $this->query .= "VALUES (\n ";
@@ -73,6 +88,7 @@ class dbQueries {
   */
   function getUser($param) {
     $this->queryDescription = "Get data from: wp_users";
+
     $this->query = "SELECT *\n ";
     $this->query .= "FROM wp_usermeta\n ";
     $this->query .= "JOIN wp_users on wp_usermeta.user_id = wp_users.id\n ";
@@ -174,7 +190,7 @@ class dbQueries {
   /*
    *
    */
-  function addOrderItem($param) {
+  function createOrderItem($param) {
     $this->queryDescription = "Populating table: wp_woocommerce_order_items";
     $this->query = "INSERT INTO wp_woocommerce_order_items\n ";
     $this->query .= "(order_item_name, order_item_type, order_id)\n ";
@@ -182,6 +198,19 @@ class dbQueries {
     $this->query .= "'".$param['item_name']."',\n ";
     $this->query .= "'".$param['item_type']."',\n ";
     $this->query .= "'".$param['order_id']."'\n ";
+    $this->query .= ")\n ";
+
+    return $this->processQuery();
+  }
+
+  function createOrderItemMeta($param) {
+    $this->queryDescription = "Populating table: wp_woocommerce_order_itemmeta";
+    $this->query = "INSERT INTO wp_woocommerce_order_itemmeta\n ";
+    $this->query .= "(order_item_id, meta_key, meta_value)\n ";
+    $this->query .= "VALUES (\n ";
+    $this->query .= "'".$param['item_id']."',\n ";
+    $this->query .= "'".$param['meta_key']."',\n ";
+    $this->query .= "'".$param['meta_value']."'\n ";
     $this->query .= ")\n ";
 
     return $this->processQuery();

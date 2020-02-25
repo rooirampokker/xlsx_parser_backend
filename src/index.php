@@ -90,8 +90,8 @@ function processCustomers($output, $queryEngine) {
     unset($user['user_login']);
     $userId = $queryEngine->getInsertId();
     foreach ($user as $key => $field) {
-      $param['id'] = $userId;
-      $param['key'] = $key;
+      $param['id']    = $userId;
+      $param['key']   = $key;
       $param['value'] = $field;
       $queryEngine->createUserMeta($param);
     }
@@ -140,48 +140,53 @@ function processOrderMeta($order, $customer, $queryEngine) {
   $firstName = getMeta($userInfo, 'meta_key', 'first_name');
   $lastName  = getMeta($userInfo, 'meta_key', 'last_name');
   //$orderMeta['_cart_hash'] = $userInfo[1];
-  $orderMeta['_billing_first_name'] =
+  $orderMeta['_billing_first_name']    =
     $orderMeta['_shipping_first_name'] =
-    $userMeta['billing_first_name'] =
-    $userMeta['shipping_first_name'] =
+    $userMeta['billing_first_name']    =
+    $userMeta['shipping_first_name']   =
       $firstName;
-  $orderMeta['_billing_last_name'] =
+
+  $orderMeta['_billing_last_name']    =
     $orderMeta['_shipping_last_name'] =
-      $userMeta['billing_last_name'] =
+      $userMeta['billing_last_name']  =
       $userMeta['shipping_last_name'] =
       $lastName;
 
   $orderMeta['_billing_address_1']    =
     $orderMeta['_shipping_address_1'] =
-    $userMeta['billing_address_1']   =
-    $userMeta['shipping_address_1']  =
+    $userMeta['billing_address_1']    =
+    $userMeta['shipping_address_1']   =
       $order['address_line_1'];
+
   $orderMeta['_billing_address_2']    =
     $orderMeta['_shipping_address_2'] =
-    $userMeta['billing_address_2']   =
-    $userMeta['shipping_address_2']  =
+    $userMeta['billing_address_2']    =
+    $userMeta['shipping_address_2']   =
       $order['address_line_2'];
+
   $orderMeta['_billing_email'] =
     $userMeta['billing_email'] =
-    $customer[0]['user_email'];
+      $customer[0]['user_email'];
+
   $orderMeta['_billing_phone'] =
     $userMeta['billing_phone'] =
       getMeta($userInfo, 'meta_key', 'billing_phone');
 
-  $orderMeta['_cart_discount'] = $order['discount_value'];
-  $orderMeta['_cart_discount'] = $order['discount_value'];
-  $orderMeta['_billing_state'] = $orderMeta['_shipping_state'] = $order['province'];
+  $orderMeta['_cart_discount']    = $order['discount_value'];
+  $orderMeta['_cart_discount']    = $order['discount_value'];
+  $orderMeta['_billing_state']    = $orderMeta['_shipping_state'] = $order['province'];
   $orderMeta['_shipping_country'] = $orderMeta['_billing_country'] = "ZA";
-  $orderMeta['_order_currency'] = 'ZAR';
-  $orderMeta['_cart_discount'] = $order['discount_value'];
-  $orderMeta['_order_shipping'] = $order['delivery_fee'];
-  $orderMeta['_order_total'] = $order['card_payment_value'];
-  $orderMeta['_date_completed'] = $orderMeta['_date_paid'] = strtotime($order['local_order_date']);
-  $orderMeta['_paid_date'] = $orderMeta['_completed_date'] = $order['local_order_date'];
-  $orderMeta['delivery_long'] = $order['delivery_longitude_coordinate'];
-  $orderMeta['delivery_lat'] = $order['delivery_longitude_latitude'];
-  $orderMeta['delivery_tip'] = $order['driver_tip'];
-  $orderMeta['discount'] = $order['discount'];
+  $orderMeta['_order_currency']   = 'ZAR';
+  $orderMeta['_cart_discount']    = $order['discount_value'];
+  $orderMeta['_order_shipping']   = $order['delivery_fee'];
+  $orderMeta['_order_total']      = $order['card_payment_value'];
+  $orderMeta['_date_completed']   = $orderMeta['_date_paid'] = strtotime($order['local_order_date']);
+  $orderMeta['_paid_date']        = $orderMeta['_completed_date'] = $order['local_order_date'];
+  $orderMeta['delivery_long']     = $order['delivery_longitude_coordinate'];
+  $orderMeta['delivery_lat']      = $order['delivery_latitude_coordinate'];
+  $orderMeta['delivery_tip']      = $order['driver_tip'];
+  $orderMeta['discount']          = $order['discount'];
+  //¬$orderMeta['_paid_date']        = $order[''];
 
   //$queryEngine->createUserMeta($param);
   foreach ($orderMeta as $key => $field) {
@@ -201,31 +206,47 @@ function processOrderMeta($order, $customer, $queryEngine) {
  *
  */
 function processOrderItems($output, $queryEngine) {
+  $orderItemParam = [];
   foreach($output['data'] as $orderItem) {
-    $order  = $queryEngine->getOrder($orderItem['order_id']);
-    $orderItem['item_name'] = $orderItem['item'];
-    $orderItem['item_type'] = "line_item";
-    $orderItem['order_id']  = $order[0]['post_id'];
-    $queryEngine->addOrderItem($orderItem);
-
+    $order     = $queryEngine->getOrder($orderItem['order_id']);
+    $orderMeta = $queryEngine->getOrderMeta($order[0]['post_id']);
+    $orderItemParam['item_name'] = $orderItem['item'];
+    $orderItemParam['item_type'] = "line_item";
+    $orderItemParam['order_id']  = $order[0]['post_id'];
+    $queryEngine->createOrderItem($orderItemParam);
+    $orderItem['item_id']   = $queryEngine->getInsertId();
     //ADD SHIPPING AT THE END OF EACH ORDER
     if ($_SESSION['order_id'] != $order[0]['post_id']) {
       $_SESSION['order_id']   = $order[0]['post_id'];
-      $orderMeta              = $queryEngine->getOrderMeta($order[0]['post_id']);
       $shippingCost           = getMeta($orderMeta, 'meta_key', '_order_shipping');
-      $orderItem['item_name'] = ($shippingCost > 0) ? 'Flat rate' : 'Free shipping';
-      $orderItem['item_type'] = "shipping";
-      $queryEngine->addOrderItem($orderItem);
+      $orderItemParam['item_name'] = ($shippingCost > 0) ? 'Flat rate' : 'Free shipping';
+      $orderItemParam['item_type'] = "shipping";
+      //$queryEngine->createOrderItem($orderItemParam);
     }
-    processOrderItemMeta();
+    processOrderItemMeta($orderItem, $order, $orderMeta, $queryEngine);
   }
 
 }
 /*
  *
  */
-function processOrderItemMeta() {
+function processOrderItemMeta($orderItem, $order, $orderMeta, $queryEngine) {
+  $orderID = $queryEngine->getProduct($orderItem['item']);
+  $orderItemMeta['_product_id'] = $orderID['ID'];
+  //$orderItemMeta['_variation_id'] = $orderItem[''];
+  $orderItemMeta['_qty'] = $orderItem['quantity'];
+  $orderItemMeta['_line_subtotal'] = $orderItem['total_value'];
+  $orderItemMeta['_line_subtotal_tax'] = $orderItem['total_vat'];
+  $orderItemMeta['_line_total'] = $orderItem['total_value'];
+  $orderItemMeta['_line_tax'] = $orderItem['total_vat'];
+  //$orderItemMeta['_line_tax_data'] = $orderItem[''];
 
+  foreach ($orderItemMeta as $key => $field) {
+    $itemMetaParam['item_id'] = $orderItem['item_id'];
+    $itemMetaParam['meta_key']     = $key;
+    $itemMetaParam['meta_value']   = $field;
+    $queryEngine->createOrderItemMeta($itemMetaParam);
+  }
 }
 /*
  * Order &ndash; July 15, 2016 @ 03:20 PM
