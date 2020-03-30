@@ -148,7 +148,8 @@ class Utilities {
    */
     private function sanitize($inputValue, $wrapQuote) {
       $inputValue = filter_var($inputValue, FILTER_SANITIZE_FULL_SPECIAL_CHARS);
-      $inputValue = strtolower(trim(stripslashes($inputValue)));
+      //strip all user-provided slashes, trim whitespace, make lowercase, then add slashes again to escape '
+      $inputValue = addslashes(strtolower(trim(stripslashes($inputValue))));
       return $wrapQuote ? "'" . $inputValue . "'" : $inputValue;
     }
 /*

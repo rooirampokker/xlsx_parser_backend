@@ -1,7 +1,7 @@
 <?php
 /*
  * CALL DIRECTLY WITH THE FOLLOWING URL OR USER THE MATCHING xlsx_parser_frontend AS INTERFACE
- * http://localhost/xlsx_importer/xlsx_parser_backend/src/index.php?debug=1&sheet_option=customer.csv
+ * http://localhost/xlsx_importer/xlsx_parser_backend/src/index.php?debug=1&sheet_option=customer
  *
   DELETE FROM wp_usermeta WHERE user_id != 1;
   DELETE FROM wp_users WHERE id != 1;
@@ -15,21 +15,27 @@
   FROM wp_woocommerce_order_items
   JOIN wp_woocommerce_order_itemmeta ON wp_woocommerce_order_itemmeta.order_item_id = wp_woocommerce_order_items.order_item_id;
  */
+header('Access-Control-Allow-Origin: http://192.168.1.8:3000');
+header('Access-Control-Allow-Methods: GET, POST, PATCH, PUT, DELETE, OPTIONS');
+header('Access-Control-Allow-Credentials: true');
+header('Access-Control-Allow-Headers: Origin, Content-Type, X-Requested-With, token, application/json,  multipart/form-data');
+
+ini_set('session.cookie_lifetime', 60 * 60 * 24 * 7);
 session_start();
 $_SESSION['order_id'] = 0;
-ini_set('session.cookie_lifetime', 60 * 60 * 24 * 7);
+//manually specify file and location - this would typically be provided during the file upload process via the front-end
+$_SESSION['fileLocation'] = 'xlsx_files/FFY_IMPORT.xlsx';
 require '../vendor/autoload.php';
 require 'classes/xlsxReader.php';
 require 'classes/utilities.php';
 require 'classes/queryEngine.php';
 require '.env';
-
 $utils = new Utilities();
 if (count($_FILES)) {//upload file
     $response = $utils->getFileToProcess();
     if ($response['success'] == 'true') {
 
-        $fileLocation             = $response['payload'];
+        $fileLocation             = 'FFY_IMPORT.xlsx'; //$response['payload'];
         $_SESSION['fileLocation'] = $fileLocation;
         $sheetReader              = new xlsxReader($fileLocation);
         $sheetNames               = $sheetReader->getSheetNames();
@@ -40,12 +46,13 @@ if (count($_FILES)) {//upload file
 } else {//file is uploaded and a sheet has been specified
     if (isset($_REQUEST['sheet_option'])) {
         if (count($_SESSION)) {
+
             $queryEngine = new dbQueries($host, $user, $password, $database);
             $sheetName   = $_REQUEST['sheet_option'];
             $sheetReader = new xlsxReader($_SESSION['fileLocation']);
             $dataStarts  = isset($_REQUEST['dataStarts']) ? $_REQUEST['dataStarts'] : 1;
             $output      = $sheetReader->matchColToRow($sheetName, $dataStarts);
-            switch ($sheetName) {
+            switch (strtoupper($sheetName)) {
               case 'CUSTOMERS':
                 processCustomers($output, $queryEngine);
                 break;
@@ -84,11 +91,18 @@ function processCustomers($output, $queryEngine) {
     $user['user_login']      = str_replace(" ", "_", $user['nickname']);
     $user['order_count']     = 0; //will have to get this....
     $user['wp_user_level']   = 0;
-    $queryEngine->createUser($user);
+    //LETS CHECK IF THE USER EXISTS FIRST BEFORE WE ADD...
+		$existingUser = $queryEngine->getUser($user['email_address']);
+		if ($existingUser === 0 || $existingUser === false || !count($existingUser)) {
+			$queryEngine->createUser($user);
+			$userId = $queryEngine->getInsertId();
+		} else {
+			$userId = $existingUser['ID'];
+		}
     //we don't want the following fields in meta
     unset($user['password']);
     unset($user['user_login']);
-    $userId = $queryEngine->getInsertId();
+
     foreach ($user as $key => $field) {
       $param['id']    = $userId;
       $param['key']   = $key;
@@ -104,7 +118,7 @@ function processOrders($output, $queryEngine) {
   $order = [];
   foreach ($output['data'] as $order) {
     $orderDesc = formatOrderDesc($order);
-    $customer  = $queryEngine->getUser($order['customer_key']);
+    $customer  = $queryEngine->getUserByMeta($order['customer_key']);
     $order['user_id']       = $customer[0]['user_id'];
     $order['post_author']   = 1;
     $order['post_title']    = $orderDesc['title'];

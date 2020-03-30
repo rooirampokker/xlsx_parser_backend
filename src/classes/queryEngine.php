@@ -4,6 +4,11 @@
 //DELETE FROM `wp_postmeta` WHERE user_id > 1;
 //DELETE FROM `wp_posts` WHERE id > 1;
 
+//DELETE wp_users, wp_usermeta
+//FROM wp_users
+//JOIN wp_usermeta ON wp_usermeta.user_id = wp_users.ID
+//WHERE user_pass = 'set password'
+
 ini_set ('memory_limit', '-1');
 ini_set ('max_execution_time', 2400); //40 minutes
 ini_set ('display_errors', 1);
@@ -54,7 +59,7 @@ class dbQueries {
       $param = $this->utils->cleanInput($param, false);
 
       $this->queryDescription = "Populating table: wp_users";
-      $this->query = "INSERT INTO wp_users\n ";
+      $this->query = "INSERT IGNORE INTO wp_users\n ";
       $this->query .= "(user_login, user_pass, user_nicename, user_email, user_registered, display_name)\n ";
       $this->query .= "VALUES (\n ";
       $this->query .= "'".$param['user_login']."',\n ";
@@ -71,9 +76,13 @@ class dbQueries {
    *
    */
     function createUserMeta($param) {
+    	if ($param['key'] != 'wp_capabilities') {//this is serialised info that contains double-quotes that should not be escaped
+				$param = $this->utils->cleanInput($param, false);
+			}
+
       $this->queryDescription = "Populating table: wp_usermeta";
 
-      $this->query = "INSERT INTO wp_usermeta\n ";
+      $this->query = "INSERT IGNORE INTO wp_usermeta\n ";
       $this->query .= "(user_id, meta_key, meta_value)\n ";
       $this->query .= "VALUES (\n ";
       $this->query .= "'".$param['id']."',\n ";
@@ -81,12 +90,24 @@ class dbQueries {
       $this->query .= "'".$param['value']."'\n ";
       $this->query .= ")\n ";
 
-      return $this->processQuery();
+      return $this->processQuery(true);
     }
+	/*
+	*
+	*/
+	function getUser($param) {
+		$this->queryDescription = "Get data from: wp_users by email";
+
+		$this->query = "SELECT *\n ";
+		$this->query .= "FROM wp_users\n ";
+		$this->query .= "WHERE user_email = '$param'\n ";
+
+		return $this->processQuery(true);
+	}
   /*
   *
   */
-  function getUser($param) {
+  function getUserByMeta($param) {
     $this->queryDescription = "Get data from: wp_users";
 
     $this->query = "SELECT *\n ";
@@ -168,6 +189,7 @@ class dbQueries {
   *
   */
   function getOrderMeta($param) {
+
     $this->queryDescription = "Get data from: wp_posts and wp_postmeta";
     $this->query = "SELECT *\n ";
     $this->query .= "FROM wp_postmeta\n ";
@@ -200,7 +222,7 @@ class dbQueries {
     $this->query .= "'".$param['order_id']."'\n ";
     $this->query .= ")\n ";
 
-    return $this->processQuery();
+    //return $this->processQuery();
   }
 
   function createOrderItemMeta($param) {
