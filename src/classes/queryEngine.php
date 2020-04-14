@@ -152,6 +152,8 @@ class dbQueries {
    *
    */
     function createOrderMeta($param) {
+			$param = $this->utils->cleanInput($param, false);
+
       $this->queryDescription = "Populating table: wp_postmeta";
       $this->query = "INSERT INTO wp_postmeta\n ";
       $this->query .= "(post_id, meta_key, meta_value)\n ";
@@ -233,18 +235,16 @@ class dbQueries {
    */
     private function processQuery($convertToArray=false) {
         if (!$result = $this->db->query($this->query)) {
-            $this->utils->log($this->query);
+            $this->utils->log($this->query, 'ERROR');
             print_r("Error with query: $this->query<br><br>");
             exit(mysqli_error($this->db));
         } else {
-                $this->utils->debug($this->query, $result, $this->queryDescription);
-            }
-            if ($convertToArray) {
-              $result = $this->utils->convertMySQLOutputToArray($result);
-            }
-
-            return $result;
-        }
+        		$this->utils->debug($this->query, $result, $this->queryDescription);
+				}
+				if ($convertToArray) {
+					$result = $this->utils->convertMySQLOutputToArray($result);
+				}
+				return $result;
     }
     /*
      *
@@ -256,7 +256,7 @@ class dbQueries {
             $msg .= "Error: Unable to connect to MySQL." . PHP_EOL;
             $msg .= "Debugging errno: " . mysqli_connect_errno() . PHP_EOL;
             $msg .= "Debugging error: " . mysqli_connect_error() . PHP_EOL;
-            $this->utils->log($msg);
+            $this->utils->log($msg, 'ERROR');
             exit;
         }
     }

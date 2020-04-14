@@ -7,7 +7,6 @@ error_reporting(E_ALL);
 class Utilities {
 	private $debugEnabled = true;
 	private $debugLog = "log/debug.log";
-	private $inputFileLocation = "xlsx_files/";
 	/*
 	 * HTML table generator component
 	 */
@@ -99,7 +98,7 @@ class Utilities {
 	function debug($query, $result, $description) {
 		$stackTrace = debug_backtrace();
 		$query = str_replace("\n", "<br>", $query);
-		$msg = "<br><b>Function:</b>" . $stackTrace[2]['function'];
+		$msg = "<br><b>Function: </b>" . $stackTrace[2]['function'];
 		$msg .= "<br><b>Description: </b>" . $description;
 		$msg .= "<br><b>Query: </b><br>" . $query;
 		$msg .= "<b>Results: </b><br>";
@@ -117,7 +116,7 @@ class Utilities {
 		$msg = str_replace("<hr>", "---------------------------------------------", $msg);
 		$msg = str_replace("<b>", "", $msg);
 		$msg = str_replace("</b>", "", $msg);
-		$this->log($msg);
+		$this->log($msg, 'INFO');
 	}
 	/*
 	 *
@@ -175,11 +174,11 @@ class Utilities {
 	/*
 	 *
 	 */
-	function log($msg, $data = false) {
-		if ($this->debugEnabled || $_REQUEST['debug']) {
-			$debugMessage = date("Y-m-d H:i:s").": ".$msg."<br>";
-			file_put_contents($this->debugLog, str_replace("<br>", "\r", $debugMessage), FILE_APPEND);
-//        print_r($debugMessage);
+	function log($msg, $type) {
+		if (($this->debugEnabled || $_REQUEST['debug']) && $type == 'ERROR') {
+			$logMsg = date("Y-m-d H:i:s") . ": " . $type . " - " . $msg . "<br>";
+			file_put_contents($this->debugLog, str_replace("<br>", "\r", $logMsg), FILE_APPEND);
+//        print_r($logMsg);
 //        print_r($data);
 		}
 	}

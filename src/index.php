@@ -61,13 +61,13 @@ if (count($_FILES)) {//upload file
             $output      = $sheetReader->matchColToRow($sheetName, $dataStarts);
             switch (strtoupper($sheetName)) {
               case 'CUSTOMERS':
-                processCustomers($output, $queryEngine);
+                processCustomers($output, $queryEngine, $utils);
                 break;
               case 'ORDERS':
-                processOrders($output, $queryEngine);
+                processOrders($output, $queryEngine, $utils);
                 break;
               case 'ORDERITEMS':
-                processOrderItems($output, $queryEngine);
+                processOrderItems($output, $queryEngine, $utils);
                 break;
               default:
                 echo "$sheetName is not catered for";
@@ -104,7 +104,7 @@ function processCustomers($output, $queryEngine) {
 			$queryEngine->createUser($user);
 			$userId = $queryEngine->getInsertId();
 		} else {
-			$userId = $existingUser['ID'];
+			$userId = $existingUser[0]['ID'];
 		}
     //we don't want the following fields in meta
     unset($user['password']);
@@ -121,12 +121,14 @@ function processCustomers($output, $queryEngine) {
 /*
  *
  */
-function processOrders($output, $queryEngine) {
-  $order = [];
+function processOrders($output, $queryEngine, $utils) {
   foreach ($output['data'] as $order) {
     $orderDesc = formatOrderDesc($order);
     $customer  = $queryEngine->getUserByMeta($order['customer_key']);
-    $order['user_id']       = $customer[0]['user_id'];
+    if (!count($customer)) {
+			$utils->log('Customer not found: '.$order['customer_key'], 'ERROR');
+		}
+    $order['user_id']       = count($customer) ? $customer[0]['user_id'] : 0;
     $order['post_author']   = 1;
     $order['post_title']    = $orderDesc['title'];
     $order['post_status']   = formatPostStatus($order);
@@ -187,7 +189,7 @@ function processOrderMeta($order, $customer, $queryEngine) {
 
   $orderMeta['_billing_email'] =
     $userMeta['billing_email'] =
-      $customer[0]['user_email'];
+      count($customer) ? $customer[0]['user_email'] : "not@available.com";
 
   $orderMeta['_billing_phone'] =
     $userMeta['billing_phone'] =
