@@ -1,13 +1,4 @@
 <?php
-//DELETE FROM `wp_usermeta` WHERE user_id > 1;
-//DELETE FROM `wp_users` WHERE id > 1;
-//DELETE FROM `wp_postmeta` WHERE user_id > 1;
-//DELETE FROM `wp_posts` WHERE id > 1;
-
-//DELETE wp_users, wp_usermeta
-//FROM wp_users
-//JOIN wp_usermeta ON wp_usermeta.user_id = wp_users.ID
-//WHERE user_pass = 'set password'
 
 ini_set ('memory_limit', '-1');
 ini_set ('max_execution_time', 2400); //40 minutes
@@ -246,7 +237,6 @@ class dbQueries {
             print_r("Error with query: $this->query<br><br>");
             exit(mysqli_error($this->db));
         } else {
-            if (isset($_REQUEST['debug'])) {
                 $this->utils->debug($this->query, $result, $this->queryDescription);
             }
             if ($convertToArray) {

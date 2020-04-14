@@ -3,17 +3,24 @@
  * CALL DIRECTLY WITH THE FOLLOWING URL OR USER THE MATCHING xlsx_parser_frontend AS INTERFACE
  * http://localhost/xlsx_importer/xlsx_parser_backend/src/index.php?debug=1&sheet_option=customer
  *
-  DELETE FROM wp_usermeta WHERE user_id != 1;
-  DELETE FROM wp_users WHERE id != 1;
 
-  DELETE wp_posts, wp_postmeta
+  DELETE wp_users, wp_usermeta
+  FROM wp_users
+  JOIN wp_usermeta ON wp_usermeta.user_id = wp_users.ID
+  WHERE user_pass = 'set password'
+
+	DELETE wp_posts, wp_postmeta
   FROM wp_posts
-  JOIN wp_postmeta ON wp_postmeta.post_id
-  AND wp_posts.post_type = 'shop_order';
+  JOIN wp_postmeta ON wp_postmeta.post_id = wp_posts.id
+		AND wp_posts.post_excerpt = 'yumby import'
 
   DELETE wp_woocommerce_order_items, wp_woocommerce_order_itemmeta
   FROM wp_woocommerce_order_items
-  JOIN wp_woocommerce_order_itemmeta ON wp_woocommerce_order_itemmeta.order_item_id = wp_woocommerce_order_items.order_item_id;
+  JOIN wp_woocommerce_order_itemmeta ON wp_woocommerce_order_itemmeta.order_item_id = wp_woocommerce_order_items.order_item_id
+	AND wp_woocommerce_order_items.order_id NOT IN (
+		SELECT ID
+		FROM wp_posts
+		WHERE 1)
  */
 header('Access-Control-Allow-Origin: http://192.168.1.8:3000');
 header('Access-Control-Allow-Methods: GET, POST, PATCH, PUT, DELETE, OPTIONS');
@@ -24,7 +31,7 @@ ini_set('session.cookie_lifetime', 60 * 60 * 24 * 7);
 session_start();
 $_SESSION['order_id'] = 0;
 //manually specify file and location - this would typically be provided during the file upload process via the front-end
-$_SESSION['fileLocation'] = 'xlsx_files/FFY_IMPORT.xlsx';
+$_SESSION['fileLocation'] = 'xlsx_files/FFY_import.xlsx';
 require '../vendor/autoload.php';
 require 'classes/xlsxReader.php';
 require 'classes/utilities.php';
@@ -35,7 +42,7 @@ if (count($_FILES)) {//upload file
     $response = $utils->getFileToProcess();
     if ($response['success'] == 'true') {
 
-        $fileLocation             = 'FFY_IMPORT.xlsx'; //$response['payload'];
+        $fileLocation             = 'FFY_import.xlsx'; //$response['payload'];
         $_SESSION['fileLocation'] = $fileLocation;
         $sheetReader              = new xlsxReader($fileLocation);
         $sheetNames               = $sheetReader->getSheetNames();
@@ -200,7 +207,7 @@ function processOrderMeta($order, $customer, $queryEngine) {
   $orderMeta['delivery_lat']      = $order['delivery_latitude_coordinate'];
   $orderMeta['delivery_tip']      = $order['driver_tip'];
   $orderMeta['discount']          = $order['discount'];
-  //¬$orderMeta['_paid_date']        = $order[''];
+  //$orderMeta['_paid_date']        = $order[''];
 
   //$queryEngine->createUserMeta($param);
   foreach ($orderMeta as $key => $field) {
