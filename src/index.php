@@ -134,7 +134,8 @@ function processOrders($output, $queryEngine, $utils) {
     $orderDesc = formatOrderDesc($order);
     $customer  = $queryEngine->getUserByMeta($order['customer_key']);
     if (!count($customer)) {
-			$utils->log('Customer not found: '.$order['customer_key'], 'ERROR');
+			$utils->log('Customer not found when attempting to attach order: '.$order['customer_key'], 'ERROR');
+			continue;
 		}
     $order['user_id']       = count($customer) ? $customer[0]['user_id'] : 0;
     $order['post_author']   = 1;
@@ -236,10 +237,14 @@ function processOrderMeta($order, $customer, $queryEngine) {
 /*
  *
  */
-function processOrderItems($output, $queryEngine) {
+function processOrderItems($output, $queryEngine, $utils) {
   $orderItemParam = [];
   foreach($output['data'] as $orderItem) {
     $order     = $queryEngine->getOrder($orderItem['order_id']);
+		if (!count($order)) {
+			$utils->log('Order not found when attempting to attach order items: '.$orderItem['order_id'], 'ERROR');
+			continue;
+		}
     $orderMeta = $queryEngine->getOrderMeta($order[0]['post_id']);
     $orderItemParam['item_name'] = $orderItem['item'];
     $orderItemParam['item_type'] = "line_item";
