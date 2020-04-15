@@ -3,6 +3,14 @@
  * CALL DIRECTLY WITH THE FOLLOWING URL OR USER THE MATCHING xlsx_parser_frontend AS INTERFACE
  * http://localhost/xlsx_importer/xlsx_parser_backend/src/index.php?debug=1&sheet_option=customer
  *
+SELECT *
+  FROM wp_posts
+  JOIN wp_postmeta ON wp_postmeta.post_id = wp_posts.id
+		AND wp_posts.post_excerpt != 'yumby import'
+        AND post_type = 'shop_order'
+        AND post_status = 'wc-processing'
+        AND wp_posts.ID = 10757
+  LIMIT 100
 
   DELETE wp_users, wp_usermeta
   FROM wp_users
@@ -66,7 +74,7 @@ if (count($_FILES)) {//upload file
               case 'ORDERS':
                 processOrders($output, $queryEngine, $utils);
                 break;
-              case 'ORDERITEMS':
+              case 'ORDER_ITEMS':
                 processOrderItems($output, $queryEngine, $utils);
                 break;
               default:
@@ -136,6 +144,7 @@ function processOrders($output, $queryEngine, $utils) {
     $order['post_password'] = uniqid('order_');
     $order['post_name']     = $orderDesc['name'];
     $order['post_type']     = "shop_order";
+    $order['order_date'] 		= $order['local_order_date'];
     $queryEngine->createOrder($order);
 
     //go back in now that we have an order ID and update GUID
@@ -151,17 +160,17 @@ function processOrders($output, $queryEngine, $utils) {
  */
 function processOrderMeta($order, $customer, $queryEngine) {
   $order['user_id'] = $order['user_id'];
-  $orderParam = $userParam = [];
-  $userInfo = $queryEngine->getUserMeta($order);
+  $orderParam 		  = $userParam = [];
+  $userInfo 			  = $queryEngine->getUserMeta($order);
 
   $orderMeta['_order_key']            = uniqid('wc_order_');
   $orderMeta['_yumbi_order_id']       = $order['order_id'];
   $orderMeta['_customer_user']        = $order['user_id'];
   $orderMeta['_payment_method']       = $order['payment_method'];
   $orderMeta['_payment_method_title'] = $order['payment_method'];
-  $orderMeta['_created_via'] = 'yumby_import';
-  $firstName = getMeta($userInfo, 'meta_key', 'first_name');
-  $lastName  = getMeta($userInfo, 'meta_key', 'last_name');
+  $orderMeta['_created_via'] 					= 'yumby_import';
+  $firstName 													= getMeta($userInfo, 'meta_key', 'first_name');
+  $lastName  													= getMeta($userInfo, 'meta_key', 'last_name');
   //$orderMeta['_cart_hash'] = $userInfo[1];
   $orderMeta['_billing_first_name']    =
     $orderMeta['_shipping_first_name'] =
@@ -195,7 +204,6 @@ function processOrderMeta($order, $customer, $queryEngine) {
     $userMeta['billing_phone'] =
       getMeta($userInfo, 'meta_key', 'billing_phone');
 
-  $orderMeta['_cart_discount']    = $order['discount_value'];
   $orderMeta['_cart_discount']    = $order['discount_value'];
   $orderMeta['_billing_state']    = $orderMeta['_shipping_state'] = $order['province'];
   $orderMeta['_shipping_country'] = $orderMeta['_billing_country'] = "ZA";
@@ -244,7 +252,7 @@ function processOrderItems($output, $queryEngine) {
       $shippingCost           = getMeta($orderMeta, 'meta_key', '_order_shipping');
       $orderItemParam['item_name'] = ($shippingCost > 0) ? 'Flat rate' : 'Free shipping';
       $orderItemParam['item_type'] = "shipping";
-      //$queryEngine->createOrderItem($orderItemParam);
+      $queryEngine->createOrderItem($orderItemParam);
     }
     processOrderItemMeta($orderItem, $order, $orderMeta, $queryEngine);
   }
@@ -294,6 +302,9 @@ function formatPostStatus($order) {
     case 'Success':
       $postStatus = "wc-completed";
       break;
+		case 'Failed':
+			$postStatus = "wc-failed";
+			break;
     default:
       $postStatus = "wc-on-hold";
   }

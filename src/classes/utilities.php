@@ -175,7 +175,7 @@ class Utilities {
 	 *
 	 */
 	function log($msg, $type) {
-		if (($this->debugEnabled || $_REQUEST['debug']) && $type == 'ERROR') {
+		if (($this->debugEnabled || $_REQUEST['debug']) && ($type == 'ERROR')) {
 			$logMsg = date("Y-m-d H:i:s") . ": " . $type . " - " . $msg . "<br>";
 			file_put_contents($this->debugLog, str_replace("<br>", "\r", $logMsg), FILE_APPEND);
 //        print_r($logMsg);

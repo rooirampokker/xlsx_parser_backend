@@ -34,7 +34,8 @@ class dbQueries {
     */
     function getProduct($param) {
       $this->queryDescription = "Get data from: wp_posts";
-
+			$param								  = $this->utils->cleanInput($param, false);
+			$param 									= $this->db->real_escape_string($param);
       $this->query = "SELECT *\n ";
       $this->query .= "FROM wp_posts\n ";
       $this->query .= "WHERE post_title = '".$param."'\n ";
@@ -47,9 +48,9 @@ class dbQueries {
   *
   */
     function createUser($param) {
-      $param = $this->utils->cleanInput($param, false);
+			$this->queryDescription = "Populating table: wp_users";
+      $param								  = $this->utils->cleanInput($param, false);
 
-      $this->queryDescription = "Populating table: wp_users";
       $this->query = "INSERT IGNORE INTO wp_users\n ";
       $this->query .= "(user_login, user_pass, user_nicename, user_email, user_registered, display_name)\n ";
       $this->query .= "VALUES (\n ";
@@ -67,11 +68,11 @@ class dbQueries {
    *
    */
     function createUserMeta($param) {
+			$this->queryDescription = "Populating table: wp_usermeta";
     	if ($param['key'] != 'wp_capabilities') {//this is serialised info that contains double-quotes that should not be escaped
 				$param = $this->utils->cleanInput($param, false);
 			}
-
-      $this->queryDescription = "Populating table: wp_usermeta";
+			$param['value'] = ($param['key'] === 'first_name' || $param['key'] === 'last_name') ? ucwords($param['value']) : $param['value'];
 
       $this->query = "INSERT IGNORE INTO wp_usermeta\n ";
       $this->query .= "(user_id, meta_key, meta_value)\n ";
@@ -129,15 +130,15 @@ class dbQueries {
       $this->query .= "(post_author, post_date, post_date_gmt, post_title, post_status, ping_status, post_password, post_name, post_modified, post_modified_gmt, post_content, post_excerpt, to_ping, pinged, post_content_filtered,  post_type)\n ";
       $this->query .= "VALUES (\n ";
       $this->query .= "'".$param['post_author']."',\n ";
-      $this->query .= "NOW(),\n ";
-      $this->query .= "NOW(),\n ";
+      $this->query .=  "'".$param['order_date']."',\n ";
+			$this->query .=  "'".$param['order_date']."',\n ";
       $this->query .= "'".$param['post_title']."',\n ";
       $this->query .= "'".$param['post_status']."',\n ";
       $this->query .= "'".$param['ping_status']."',\n ";
       $this->query .= "'".$param['post_password']."',\n ";
       $this->query .= "'".$param['post_name']."',\n ";
-      $this->query .= "NOW(),\n ";
-      $this->query .= "NOW(),\n ";
+      $this->query .=  "'".$param['order_date']."',\n ";
+      $this->query .=  "'".$param['order_date']."',\n ";
       $this->query .= "'',\n ";
       $this->query .= "'yumby import',\n "; //post_excerpt
       $this->query .= "'',\n ";//to_ping
@@ -207,6 +208,10 @@ class dbQueries {
    */
   function createOrderItem($param) {
     $this->queryDescription = "Populating table: wp_woocommerce_order_items";
+
+		$param								  = $this->utils->cleanInput($param, false);
+		$param['item_name']			= $this->db->real_escape_string($param['item_name']);
+
     $this->query = "INSERT INTO wp_woocommerce_order_items\n ";
     $this->query .= "(order_item_name, order_item_type, order_id)\n ";
     $this->query .= "VALUES (\n ";
@@ -215,7 +220,7 @@ class dbQueries {
     $this->query .= "'".$param['order_id']."'\n ";
     $this->query .= ")\n ";
 
-    //return $this->processQuery();
+    return $this->processQuery();
   }
 
   function createOrderItemMeta($param) {
@@ -235,9 +240,9 @@ class dbQueries {
    */
     private function processQuery($convertToArray=false) {
         if (!$result = $this->db->query($this->query)) {
-            $this->utils->log($this->query, 'ERROR');
-            print_r("Error with query: $this->query<br><br>");
-            exit(mysqli_error($this->db));
+        	$msg = "Error with query: $this->query<br><br>";
+        	$msg .= mysqli_error($this->db);
+            $this->utils->log($msg, 'ERROR');
         } else {
         		$this->utils->debug($this->query, $result, $this->queryDescription);
 				}
