@@ -263,7 +263,7 @@ function processOrderItems($output, $queryEngine) {
  */
 function processOrderItemMeta($orderItem, $order, $orderMeta, $queryEngine) {
   $orderID = $queryEngine->getProduct($orderItem['item']);
-  $orderItemMeta['_product_id'] = $orderID['ID'];
+  $orderItemMeta['_product_id'] = $orderID[0]['ID'];
   //$orderItemMeta['_variation_id'] = $orderItem[''];
   $orderItemMeta['_qty'] = $orderItem['quantity'];
   $orderItemMeta['_line_subtotal'] = $orderItem['total_value'];

@@ -42,7 +42,7 @@ class dbQueries {
       $this->query .= "AND post_status = 'publish'\n ";
       $this->query .= "AND post_type = 'product'\n ";
 
-      return $this->processQuery(truex);
+      return $this->processQuery(true);
     }
   /*
   *
