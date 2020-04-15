@@ -25,10 +25,11 @@ SELECT *
   DELETE wp_woocommerce_order_items, wp_woocommerce_order_itemmeta
   FROM wp_woocommerce_order_items
   JOIN wp_woocommerce_order_itemmeta ON wp_woocommerce_order_itemmeta.order_item_id = wp_woocommerce_order_items.order_item_id
-	AND wp_woocommerce_order_items.order_id NOT IN (
-		SELECT ID
-		FROM wp_posts
-		WHERE 1)
+	AND wp_woocommerce_order_items.order_id IN (
+            SELECT ID
+            FROM wp_posts
+            WHERE wp_posts.post_excerpt = 'yumby import'
+            AND post_type = 'shop_order')
  */
 header('Access-Control-Allow-Origin: http://192.168.1.8:3000');
 header('Access-Control-Allow-Methods: GET, POST, PATCH, PUT, DELETE, OPTIONS');
@@ -259,16 +260,22 @@ function processOrderItems($output, $queryEngine, $utils) {
       $orderItemParam['item_type'] = "shipping";
       $queryEngine->createOrderItem($orderItemParam);
     }
-    processOrderItemMeta($orderItem, $order, $orderMeta, $queryEngine);
+    processOrderItemMeta($orderItem, $queryEngine, $utils);
   }
 
 }
 /*
  *
  */
-function processOrderItemMeta($orderItem, $order, $orderMeta, $queryEngine) {
+function processOrderItemMeta($orderItem, $queryEngine, $utils) {
   $orderID = $queryEngine->getProduct($orderItem['item']);
-  $orderItemMeta['_product_id'] = $orderID[0]['ID'];
+	if (!count($orderID)) {
+		$utils->log('Product not found in catalogue when attempting to attach order item meta: '.$orderItem['item'], 'ERROR');
+		//the product  may  not exist anymore, but don't skip - just don't give a product_id as meta field
+	} else {
+		$orderItemMeta['_product_id'] = $orderID[0]['ID'];
+	}
+
   //$orderItemMeta['_variation_id'] = $orderItem[''];
   $orderItemMeta['_qty'] = $orderItem['quantity'];
   $orderItemMeta['_line_subtotal'] = $orderItem['total_value'];
@@ -322,7 +329,6 @@ function getMeta($metaArray, $metaKey, $metaValue) {
   foreach($metaArray as $item => $value) {
     if (isset($value[$metaKey])) {
       if ($value[$metaKey] == $metaValue) {
-
         return $value['meta_value'];
       }
     }
