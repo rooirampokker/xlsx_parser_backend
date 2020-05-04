@@ -196,7 +196,7 @@ function processOrderMeta($order, $customer, $queryEngine) {
     $orderMeta['_shipping_address_2'] =
     $userMeta['billing_address_2']    =
     $userMeta['shipping_address_2']   =
-      $order['address_line_2'];
+      $order['address_line_2'].", ".$order['street'];
 
   $orderMeta['_billing_email'] =
     $userMeta['billing_email'] =
@@ -212,13 +212,17 @@ function processOrderMeta($order, $customer, $queryEngine) {
   $orderMeta['_order_currency']   = 'ZAR';
   $orderMeta['_cart_discount']    = $order['discount_value'];
   $orderMeta['_order_shipping']   = $order['delivery_fee'];
-  $orderMeta['_order_total']      = $order['card_payment_value'];
+  $orderMeta['_order_total']      = $order['net_value'];
+  $orderMeta['gross_value']      = $order['gross_value'];
+  $orderMeta['card_payment_value'] = $order['card_payment_value'];
+  $orderMeta['total_value']      = $order['total_value'];
   $orderMeta['_date_completed']   = $orderMeta['_date_paid'] = strtotime($order['local_order_date']);
   $orderMeta['_paid_date']        = $orderMeta['_completed_date'] = $order['local_order_date'];
   $orderMeta['delivery_long']     = $order['delivery_longitude_coordinate'];
   $orderMeta['delivery_lat']      = $order['delivery_latitude_coordinate'];
   $orderMeta['delivery_tip']      = $order['driver_tip'];
   $orderMeta['discount']          = $order['discount'];
+  $orderMeta['voucher']          = $order['voucher'];
   //$orderMeta['_paid_date']        = $order[''];
 
   //$queryEngine->createUserMeta($param);
