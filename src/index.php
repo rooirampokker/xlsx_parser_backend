@@ -3,13 +3,13 @@
  * CALL DIRECTLY WITH THE FOLLOWING URL OR USER THE MATCHING xlsx_parser_frontend AS INTERFACE
  * http://localhost/xlsx_importer/xlsx_parser_backend/src/index.php?debug=1&sheet_option=customer
  *
-SELECT *
+SELECT wp_postmeta.*
   FROM wp_posts
   JOIN wp_postmeta ON wp_postmeta.post_id = wp_posts.id
 		AND wp_posts.post_excerpt != 'yumby import'
         AND post_type = 'shop_order'
         AND post_status = 'wc-processing'
-        AND wp_posts.ID = 10757
+        AND wp_posts.ID = 52722
   LIMIT 100
 
   DELETE wp_users, wp_usermeta
@@ -102,7 +102,7 @@ function processCustomers($output, $queryEngine) {
     $user['password']        = 'set password';
     $user['nickname']        = ucfirst(trim($user['first_name'])) . " " . ucfirst(trim($user['last_name']));
     $user['description']     = "Automated import from Yumbi database";
-    $user['wp_capabilities'] = serialize(["customer" => true]);
+    $user['wp_capabilities'] = serialize(["customer_jhb" => true]);
     $user['billing_phone']   = $user['mobile_number'];
     $user['user_login']      = str_replace(" ", "_", $user['nickname']);
     $user['order_count']     = 0; //will have to get this....
@@ -146,7 +146,7 @@ function processOrders($output, $queryEngine, $utils) {
     $order['post_password'] = uniqid('order_');
     $order['post_name']     = $orderDesc['name'];
     $order['post_type']     = "shop_order";
-    $order['order_date'] 		= $order['local_order_date'];
+    $order['order_date'] 	  = substr($order['local_order_date'], 0, strpos($order['local_order_date'], "."));
     $queryEngine->createOrder($order);
 
     //go back in now that we have an order ID and update GUID
@@ -165,11 +165,17 @@ function processOrderMeta($order, $customer, $queryEngine) {
   $orderParam 		  = $userParam = [];
   $userInfo 			  = $queryEngine->getUserMeta($order);
 
+  $deliveryDate = new DateTime($order['order_date']);
+  $deliveryDate = $deliveryDate->add(new DateInterval('P1D'));
+  $deliveryDate = strtotime($deliveryDate->format('d F, Y'));
+
   $orderMeta['_order_key']            = uniqid('wc_order_');
   $orderMeta['_yumbi_order_id']       = $order['order_id'];
   $orderMeta['_customer_user']        = $order['user_id'];
   $orderMeta['_payment_method']       = $order['payment_method'];
   $orderMeta['_payment_method_title'] = $order['payment_method'];
+  $orderMeta['Delivery Date']         = $order['order_date'];
+  $orderMeta['_orddd_timestamp']      = $deliveryDate;
   $orderMeta['_created_via'] 					= 'yumby_import';
   $firstName 													= getMeta($userInfo, 'meta_key', 'first_name');
   $lastName  													= getMeta($userInfo, 'meta_key', 'last_name');
@@ -216,8 +222,8 @@ function processOrderMeta($order, $customer, $queryEngine) {
   $orderMeta['gross_value']      = $order['gross_value'];
   $orderMeta['card_payment_value'] = $order['card_payment_value'];
   $orderMeta['total_value']      = $order['total_value'];
-  $orderMeta['_date_completed']   = $orderMeta['_date_paid'] = strtotime($order['local_order_date']);
-  $orderMeta['_paid_date']        = $orderMeta['_completed_date'] = $order['local_order_date'];
+  $orderMeta['_date_completed']   = $orderMeta['_date_paid'] = $order['order_date'];
+  $orderMeta['_paid_date']        = $orderMeta['_completed_date'] = $order['order_date'];
   $orderMeta['delivery_long']     = $order['delivery_longitude_coordinate'];
   $orderMeta['delivery_lat']      = $order['delivery_latitude_coordinate'];
   $orderMeta['delivery_tip']      = $order['driver_tip'];
@@ -251,7 +257,7 @@ function processOrderItems($output, $queryEngine, $utils) {
 			continue;
 		}
     $orderMeta = $queryEngine->getOrderMeta($order[0]['post_id']);
-    $orderItemParam['item_name'] = $orderItem['item'];
+    $orderItemParam['item_name'] = str_replace("(NEW)", "", $orderItem['item']); //TRIMS NEW OFF THE END OF THE PRODUCT NAME
     $orderItemParam['item_type'] = "line_item";
     $orderItemParam['order_id']  = $order[0]['post_id'];
     $queryEngine->createOrderItem($orderItemParam);
