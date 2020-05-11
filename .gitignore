@@ -48,4 +48,5 @@ composer.lock
 ######################
 **/.idea 
 *.xlsx
+.env
 
