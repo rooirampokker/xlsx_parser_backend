@@ -3,25 +3,20 @@
  * CALL DIRECTLY WITH THE FOLLOWING URL OR USER THE MATCHING xlsx_parser_frontend AS INTERFACE
  * http://localhost/xlsx_importer/xlsx_parser_backend/src/index.php?debug=1&sheet_option=customer
  *
-SELECT wp_postmeta.*
-  FROM wp_posts
-  JOIN wp_postmeta ON wp_postmeta.post_id = wp_posts.id
-		AND wp_posts.post_excerpt != 'yumby import'
-        AND post_type = 'shop_order'
-        AND post_status = 'wc-processing'
-        AND wp_posts.ID = 52722
-  LIMIT 100
 
+//CLEAR OUT IMPORTED CUSTOMERS
   DELETE wp_users, wp_usermeta
   FROM wp_users
   JOIN wp_usermeta ON wp_usermeta.user_id = wp_users.ID
   WHERE user_pass = 'set password'
 
+//DETATCH/CLEAR OUY IMPORTED ORDER FROM CUSTOMERS
 	DELETE wp_posts, wp_postmeta
   FROM wp_posts
   JOIN wp_postmeta ON wp_postmeta.post_id = wp_posts.id
 		AND wp_posts.post_excerpt = 'yumby import'
 
+//DETATCH/CLEAR OUT IMPORTED ORDER ITEMS FROM ORDERS
   DELETE wp_woocommerce_order_items, wp_woocommerce_order_itemmeta
   FROM wp_woocommerce_order_items
   JOIN wp_woocommerce_order_itemmeta ON wp_woocommerce_order_itemmeta.order_item_id = wp_woocommerce_order_items.order_item_id
@@ -30,6 +25,33 @@ SELECT wp_postmeta.*
             FROM wp_posts
             WHERE wp_posts.post_excerpt = 'yumby import'
             AND post_type = 'shop_order')
+
+//GENERAL QUERY TO DISPLAY ALL ORDER IMPORTS
+SELECT wp_postmeta.*
+  FROM wp_posts
+  JOIN wp_postmeta ON wp_postmeta.post_id = wp_posts.id
+		AND wp_posts.post_excerpt != 'yumby import'
+        AND post_type = 'shop_order'
+        AND post_status = 'wc-processing'
+        AND wp_posts.ID = 113137
+  LIMIT 100
+
+//IDENTIFY ALL ORDERS WITH MULTIPLE 'shipping' ORDER_ITEMS - INDICATES ITEMS FOR DELETION
+SELECT count(*) as total_orders, order_id, order_item_type, post_excerpt, wp_woocommerce_order_items.*, wp_posts.*
+FROM wp_woocommerce_order_items
+JOIN wp_posts ON wp_posts.id = wp_woocommerce_order_items.order_id
+WHERE order_item_type LIKE 'shipping'
+GROUP BY order_id
+HAVING total_orders > 1
+ORDER BY `total_orders`  DESC
+
+DELETES DUPLICATE 'shipping' ITEMS, AS PER QUERY ABOVE
+DELETE t1
+FROM wp_woocommerce_order_items t1
+INNER JOIN wp_woocommerce_order_items t2
+WHERE t1.order_item_type LIKE 'shipping'
+AND t1.order_item_id < t2.order_item_id
+AND t1.order_id = t2.order_id
  */
 header('Access-Control-Allow-Origin: http://192.168.1.8:3000');
 header('Access-Control-Allow-Methods: GET, POST, PATCH, PUT, DELETE, OPTIONS');
@@ -257,7 +279,7 @@ function processOrderItems($output, $queryEngine, $utils) {
 			continue;
 		}
     $orderMeta = $queryEngine->getOrderMeta($order[0]['post_id']);
-    $orderItemParam['item_name'] = str_replace("(NEW)", "", $orderItem['item']); //TRIMS NEW OFF THE END OF THE PRODUCT NAME
+    $orderItemParam['item_name'] = $orderItem['item'] = str_replace("(NEW)", "", $orderItem['item']); //TRIMS NEW OFF THE END OF THE PRODUCT NAME
     $orderItemParam['item_type'] = "line_item";
     $orderItemParam['order_id']  = $order[0]['post_id'];
     $queryEngine->createOrderItem($orderItemParam);
