@@ -53,12 +53,28 @@ class dbQueries {
 		$param 									= $this->db->real_escape_string($param);
 		$this->query = "SELECT *\n ";
 		$this->query .= "FROM wp_posts\n ";
-		$this->query .= "WHERE post_title = '".$param."'\n ";
-		$this->query .= "AND post_type    = 'product_variation';\n ";
-		$this->query .= "AND post_parent  = '".$parentID."';\n ";
-		$this->query .= "AND post_status  = 'publish'\n ";
+		$this->query .= "WHERE post_title LIKE '%".$param."'\n ";
+		$this->query .= "AND post_type    = 'product_variation'\n ";
+		$this->query .= "AND post_parent  = '".$parentID."'\n ";
+		$this->query .= "AND post_status  = 'publish';\n ";
 
 		return $this->processQuery(true);
+	}
+	/*
+	 *
+	 */
+	function updateOrderItemWithVariation($parentID, $param) {
+		$this->queryDescription = "Updating product item with variation";
+
+//		$param	= $this->utils->cleanInput($param, false);
+//		$param	= $this->db->real_escape_string($param);
+
+		$this->query = "UPDATE wp_woocommerce_order_items\n ";
+		$this->query .= "SET\n ";
+		$this->query .= "order_item_name = '$param'\n ";
+		$this->query .= "WHERE order_item_id = $parentID\n";
+
+		return $this->processQuery();
 	}
 	/*
 	*
@@ -238,7 +254,9 @@ class dbQueries {
 
 		return $this->processQuery();
 	}
-
+/*
+ *
+ */
 	function createOrderItemMeta($param) {
 		$this->queryDescription = "Populating table: wp_woocommerce_order_itemmeta";
 		$this->query = "INSERT INTO wp_woocommerce_order_itemmeta\n ";
@@ -248,6 +266,46 @@ class dbQueries {
 		$this->query .= "'".$param['meta_key']."',\n ";
 		$this->query .= "'".$param['meta_value']."'\n ";
 		$this->query .= ")\n ";
+
+		return $this->processQuery();
+	}
+/*
+ *
+ */
+	function clearCustomers() {
+		$this->queryDescription = "Deleting imported items from : wp_users and wp_usermeta";
+		$this->query = "DELETE wp_users, wp_usermeta\n ";
+		$this->query .= "FROM wp_users\n ";
+		$this->query .= "JOIN wp_usermeta ON wp_usermeta.user_id = wp_users.ID\n ";
+		$this->query .= "WHERE user_pass = 'set password'\n ";
+
+		return $this->processQuery();
+	}
+/*
+ *
+ */
+	function clearOrders() {
+		$this->queryDescription = "Deleting imported items from : wp_posts and wp_postmeta";
+		$this->query = "DELETE wp_posts, wp_postmeta\n ";
+		$this->query .= "FROM wp_posts\n ";
+		$this->query .= "JOIN wp_postmeta ON wp_postmeta.post_id = wp_posts.id\n ";
+		$this->query .= "AND wp_posts.post_excerpt = 'yumby import';\n ";
+
+		return $this->processQuery();
+	}
+/*
+ *
+ */
+	function clearOrderItems() {
+		$this->queryDescription = "Deleting imported items from : wp_woocommerce_order_items and wp_woocommerce_order_itemmeta";
+		$this->query = "DELETE wp_woocommerce_order_items, wp_woocommerce_order_itemmeta\n ";
+		$this->query .= "FROM wp_woocommerce_order_items\n ";
+		$this->query .= "JOIN wp_woocommerce_order_itemmeta ON wp_woocommerce_order_itemmeta.order_item_id = wp_woocommerce_order_items.order_item_id\n ";
+		$this->query .= "AND wp_woocommerce_order_items.order_id IN (\n ";
+		$this->query .= "SELECT ID\n ";
+  	$this->query .= "FROM wp_posts\n ";
+		$this->query .= "WHERE wp_posts.post_excerpt = 'yumby import'\n ";
+		$this->query .= "AND post_type = 'shop_order')\n ";
 
 		return $this->processQuery();
 	}

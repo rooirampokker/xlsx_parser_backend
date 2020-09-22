@@ -41,7 +41,7 @@ ini_set('session.cookie_lifetime', 60 * 60 * 24 * 7);
 session_start();
 $_SESSION['order_id'] = 0;
 //manually specify file and location - this would typically be provided during the file upload process via the front-end
-$_SESSION['fileLocation'] = 'xlsx_files/FFY_import.xlsx';
+$_SESSION['fileLocation'] = 'xlsx_files/FFY_import_reduced.xlsx';
 require '../vendor/autoload.php';
 require 'classes/xlsxReader.php';
 require 'classes/utilities.php';
@@ -70,7 +70,9 @@ if (count($_FILES)) {//upload file
 			$sheetName   = $_REQUEST['sheet_option'];
 			$sheetReader = new xlsxReader($_SESSION['fileLocation']);
 			$dataStarts  = isset($_REQUEST['dataStarts']) ? $_REQUEST['dataStarts'] : 1;
-			$output      = $sheetReader->matchColToRow($sheetName, $dataStarts);
+			if ($sheetName !== 'clear') {
+				$output = $sheetReader->matchColToRow($sheetName, $dataStarts);
+			}
 			switch (strtoupper($sheetName)) {
 				case 'CUSTOMERS':
 					processCustomers($output, $queryEngine, $utils);
@@ -81,8 +83,11 @@ if (count($_FILES)) {//upload file
 				case 'ORDER_ITEMS':
 					processOrderItems($output, $queryEngine, $utils);
 					break;
+				case 'CLEAR':
+					clearImport($queryEngine);
 				default:
 					echo "$sheetName is not catered for";
+					die();
 			}
 			$response = ['success' => 'true',
 				'debugData'  => $user,
@@ -97,6 +102,17 @@ if (count($_FILES)) {//upload file
 	}
 	//die(json_encode($response));
 	die();
+}
+/*
+ *
+ */
+function clearImport($queryEngine) {
+	$orderItemsCleared = $queryEngine->clearOrderItems();
+	$ordersCleared 	   = $queryEngine->clearOrders();
+	$customersCleared  = $queryEngine->clearCustomers();
+	print_r("<br>Order Items Cleared: $orderItemsCleared");
+	print_r("<br>Orders Cleared: $ordersCleared");
+	print_r("<br>Customers Cleared: $customersCleared");
 }
 /*
  *
@@ -150,7 +166,7 @@ function processOrders($output, $queryEngine, $utils) {
 		$order['post_password'] = uniqid('order_');
 		$order['post_name']     = $orderDesc['name'];
 		$order['post_type']     = "shop_order";
-		$order['order_date'] 		= $order['local_order_date'];
+		$order['order_date'] 		= substr($order['local_order_date'], 0, strpos($order['local_order_date'], "."));
 		$queryEngine->createOrder($order);
 
 		//go back in now that we have an order ID and update GUID
@@ -275,9 +291,9 @@ function processOrderItems($output, $queryEngine, $utils) {
 //ITEMS BELOW MUST ONLY BE ADDED ONCE PER ORDER
 //  $orderItemMeta['method_id'] = ($order['delivery_fee'] > 0) ? 'flat_rate': 'free_shipping';
 //	$orderItemMeta['instance_id'] = ($order['delivery_fee'] > 0) ? 4 : 5; //instance_id 4 & 5 maps back to flat_rate and free_shipping for Jhb zone as per wp_woocommerce_shipping_zone_methods
-//	$orderItemMeta['cost'] = $order['delivery_fee'];
-//	$orderItemMeta['items'] =
-			//$orderItemMeta['_line_tax_data'] = $orderItem[''];
+		$orderItemMeta['cost'] = '100';
+		$orderItemMeta['items'] =
+			$orderItemMeta['_line_tax_data'] = $orderItem[''];
 			$queryEngine->createOrderItem($orderItemParam);
 		}
 		processOrderItemMeta($orderItem, $queryEngine, $utils);
@@ -301,9 +317,6 @@ function processOrderItemMeta($orderItem, $queryEngine, $utils) {
 	} else {
 		//TODO: (incomplete) Variations product exists - check if this has an appropriate variation
 		$variationID = $queryEngine->getProductVariation($orderID[0]['ID'], $orderItem['variation']);
-		print_r("Parent Product: ".$orderID[0]['ID']);
-		print_r("Variant Name: ".$orderItem['variation']);
-		print_r("<br>");
 		$orderItemMeta['_product_id'] = $orderID[0]['ID'];
 	}
 
@@ -313,7 +326,12 @@ function processOrderItemMeta($orderItem, $queryEngine, $utils) {
 	$orderItemMeta['_line_subtotal_tax'] = $orderItem['total_vat'];
 	$orderItemMeta['_line_total'] = $orderItem['total_value'];
 	$orderItemMeta['_line_tax'] = $orderItem['total_vat'];
-	$orderItemMeta['_variation_id'] = $variationID[0]['ID'];
+	if (is_array($variationID) && count($variationID)) {
+		$orderItemMeta['_variation_id'] = $variationID[0]['ID'];
+		$queryEngine->updateOrderItemWithVariation($orderItem['item_id'], $variationID[0]['post_title']);
+	} else {
+		$utils->log('The specified variation '.$orderItem['variation'].' could not be found for '.$orderItem['item'], 'ERROR');
+	}
 	addOrderItemMeta($queryEngine, $orderItem, $orderItemMeta);
 }
 
